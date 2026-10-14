@@ -1,20 +1,24 @@
 <header class="app-header">
   <h1>{{ title }}</h1>
 
-  @if (!isLoggedIn) {
-    <button (click)="login()">Iniciar sesión con Microsoft</button>
+  @if (!isLoggedIn()) {
+    <div class="auth-buttons">
+      <button (click)="login()">Iniciar sesión</button>
+      <button (click)="registrarse()">Crear cuenta</button>
+    </div>
   } @else {
     <div class="user-info">
-      <span>Hola, {{ userName }}</span>
+      <span>Hola, {{ userName() }}</span>
       <button (click)="logout()">Cerrar sesión</button>
     </div>
   }
 </header>
 
 <main>
-  @if (isLoggedIn) {
+  @if (isLoggedIn()) {
     <router-outlet />
+    <p>Sesión iniciada. Token emitido por ProyectoNexora para NexoraMarket-API.</p>
   } @else {
-    <p>Inicia sesión para ver el contenido de NexoraMarket.</p>
+    <p>Inicia sesión o crea una cuenta para ver el contenido de NexoraMarket.</p>
   }
 </main>

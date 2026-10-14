@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { MsalService, MsalBroadcastService } from '@azure/msal-angular';
 import { InteractionStatus } from '@azure/msal-browser';
 import { Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
+import { environment } from '../environments/environment';
 
 @Component({
   imports: [CommonModule, RouterOutlet],
@@ -16,25 +17,15 @@ export class App implements OnInit, OnDestroy {
   private readonly msalService = inject(MsalService);
   private readonly msalBroadcastService = inject(MsalBroadcastService);
   private readonly destroying$ = new Subject<void>();
-  private heartbeat: ReturnType<typeof setInterval> | undefined;
 
   protected readonly title = 'NexoraMarket';
-  isLoggedIn = false;
-  userName: string | undefined;
-
-  constructor() {
-    console.log('%c[APP] Componente App CONSTRUIDO', 'color: orange; font-weight: bold;');
-  }
+  readonly isLoggedIn = signal(false);
+  readonly userName = signal<string | undefined>(undefined);
 
   ngOnInit(): void {
     this.msalService.handleRedirectObservable().subscribe({
-      next: (result) => {
-        console.log('[MSAL] handleRedirectObservable resultado:', result);
-        this.setLoginDisplay();
-      },
-      error: (error) => {
-        console.error('[MSAL] Error en handleRedirectObservable:', error);
-      }
+      next: () => this.setLoginDisplay(),
+      error: (error) => console.error('[MSAL] Error en el redirect:', error),
     });
 
     this.msalBroadcastService.inProgress$
@@ -42,26 +33,27 @@ export class App implements OnInit, OnDestroy {
         filter((status: InteractionStatus) => status === InteractionStatus.None),
         takeUntil(this.destroying$)
       )
-      .subscribe(() => {
-        const cuentas = this.msalService.instance.getAllAccounts();
-        console.log('[MSAL] inProgress$ = None. Cuentas encontradas:', cuentas.length, cuentas);
-        this.setLoginDisplay();
-      });
-
-    this.heartbeat = setInterval(() => {
-      console.log('%c[HEARTBEAT] isLoggedIn =', 'color: dodgerblue;', this.isLoggedIn, '| userName =', this.userName);
-    }, 2000);
+      .subscribe(() => this.setLoginDisplay());
   }
 
   setLoginDisplay(): void {
     const accounts = this.msalService.instance.getAllAccounts();
-    this.isLoggedIn = accounts.length > 0;
-    this.userName = accounts.length > 0 ? accounts[0].name : undefined;
-    console.log('[MSAL] setLoginDisplay ejecutado. isLoggedIn =', this.isLoggedIn, '| userName =', this.userName);
+    if (accounts.length > 0 && !this.msalService.instance.getActiveAccount()) {
+      this.msalService.instance.setActiveAccount(accounts[0]);
+    }
+    this.isLoggedIn.set(accounts.length > 0);
+    this.userName.set(accounts[0]?.name);
   }
 
   login(): void {
-    this.msalService.loginRedirect();
+    this.msalService.loginRedirect({ scopes: [environment.azure.apiScope] });
+  }
+
+  registrarse(): void {
+    this.msalService.loginRedirect({
+      scopes: [environment.azure.apiScope],
+      prompt: 'create',
+    });
   }
 
   logout(): void {
@@ -69,11 +61,7 @@ export class App implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('%c[APP] Componente App DESTRUIDO', 'color: red; font-weight: bold;');
-    if (this.heartbeat) {
-      clearInterval(this.heartbeat);
-    }
-    this.destroying$.next(undefined);
+    this.destroying$.next();
     this.destroying$.complete();
   }
 }

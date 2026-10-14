@@ -7,5 +7,5 @@ export const environment = {
     redirectUri: 'http://localhost:4200',
     apiScope: 'api://967df881-c709-4c72-9c7c-787c1aa5557d/access_as_user'
   },
-  apiBaseUrl: 'http://98.88.31.223:8080'
+  apiBaseUrl: 'http://54.173.229.39:8080'
 };
